@@ -7,3 +7,10 @@ edition = "2021"
 anyhow = { version = "1.0.66", features = ["backtrace"] }
 byteorder = "1.4.3"
 tempfile = "3.3.0"
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "my_benchmark"
+harness = false
