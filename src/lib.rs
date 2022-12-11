@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::{self, BufWriter, Read, Seek, SeekFrom, Write},
+    io::{self, BufWriter, Read, Seek, SeekFrom, Write, BufReader},
 };
 
 use byteorder::ByteOrder;
@@ -30,11 +30,11 @@ impl<'a> Writer<'a> {
 }
 
 pub struct Reader<'a> {
-    file: &'a mut File,
+    file: BufReader<&'a mut File>,
 }
 impl<'a> Reader<'a> {
     pub fn new(file: &'a mut File) -> Self {
-        Reader { file }
+        Reader { file: BufReader::new(file) }
     }
     pub fn read(&mut self, key: &[u8]) -> io::Result<Vec<u8>> {
         let mut buf = [0; 4];
