@@ -43,17 +43,21 @@ impl<'a> Reader<'a> {
         loop {
             self.file.read_exact(&mut buf)?;
             let key_len = byteorder::LittleEndian::read_u32(&buf) as usize;
+
             let mut key_buf = vec![0; key_len];
             self.file.read_exact(&mut key_buf)?;
 
             self.file.read_exact(&mut buf)?;
             let value_len = byteorder::LittleEndian::read_u32(&buf) as usize;
+
+            if key_buf != key {
+                self.file.seek_relative(value_len as i64)?;
+                continue;
+            }
+
             let mut value_buf = vec![0; value_len];
             self.file.read_exact(&mut value_buf)?;
-
-            if key_buf == key {
-                return Ok(value_buf);
-            }
+            return Ok(value_buf);
         }
     }
 }

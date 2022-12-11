@@ -32,6 +32,25 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             }
         });
     });
+
+    c.bench_function("read_1000_nonexistent", |b| {
+        let mut file = tempfile::tempfile().unwrap();
+        {
+            let mut w = Writer::new(&mut file);
+            for i in 0..1_000 {
+                let key = format!("key-{}", i);
+                let value = format!("value-{}", i);
+                w.append(key.as_bytes(), value.as_bytes()).unwrap();
+            }
+        }
+        b.iter(|| {
+            let mut r = Reader::new(&mut file);
+            for i in 0..1_000 {
+                let key = format!("garbage-{}", i);
+                let _ = black_box(r.read(key.as_bytes()));
+            }
+        });
+    });
 }
 
 criterion_group!(benches, criterion_benchmark);
