@@ -1,13 +1,18 @@
-use std::{io::{self, Write, Seek, SeekFrom, Read, BufWriter}, fs::File};
+use std::{
+    fs::File,
+    io::{self, BufWriter, Read, Seek, SeekFrom, Write},
+};
 
 use byteorder::ByteOrder;
 
 pub struct Writer<'a> {
     file: BufWriter<&'a mut File>,
 }
-impl <'a> Writer<'a> {
+impl<'a> Writer<'a> {
     pub fn new(file: &'a mut File) -> Self {
-        Writer { file: BufWriter::new(file) }
+        Writer {
+            file: BufWriter::new(file),
+        }
     }
     pub fn append(&mut self, key: &[u8], value: &[u8]) -> anyhow::Result<()> {
         let mut buf = [0; 4];
@@ -27,7 +32,7 @@ impl <'a> Writer<'a> {
 pub struct Reader<'a> {
     file: &'a mut File,
 }
-impl <'a> Reader<'a> {
+impl<'a> Reader<'a> {
     pub fn new(file: &'a mut File) -> Self {
         Reader { file }
     }
