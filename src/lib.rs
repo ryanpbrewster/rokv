@@ -1,13 +1,13 @@
-use std::{io::{self, Write, Seek, SeekFrom, Read}, fs::File};
+use std::{io::{self, Write, Seek, SeekFrom, Read, BufWriter}, fs::File};
 
 use byteorder::ByteOrder;
 
 pub struct Writer<'a> {
-    file: &'a mut File,
+    file: BufWriter<&'a mut File>,
 }
 impl <'a> Writer<'a> {
     pub fn new(file: &'a mut File) -> Self {
-        Writer { file }
+        Writer { file: BufWriter::new(file) }
     }
     pub fn append(&mut self, key: &[u8], value: &[u8]) -> anyhow::Result<()> {
         let mut buf = [0; 4];
@@ -19,8 +19,6 @@ impl <'a> Writer<'a> {
         byteorder::LittleEndian::write_u32(&mut buf, value.len() as u32);
         self.file.write_all(&buf)?;
         self.file.write_all(value)?;
-
-        self.file.flush()?;
 
         Ok(())
     }
