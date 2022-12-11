@@ -1,0 +1,9 @@
+[package]
+name = "rokv"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { version = "1.0.66", features = ["backtrace"] }
+byteorder = "1.4.3"
+tempfile = "3.3.0"
