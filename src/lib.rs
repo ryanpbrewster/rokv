@@ -1,9 +1,9 @@
 use std::{
     fs::File,
-    io::{BufWriter, Read, Seek, SeekFrom, Write, BufReader},
+    io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write},
 };
 
-use byteorder::{ReadBytesExt, LittleEndian, WriteBytesExt};
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 pub struct Writer<'a> {
     file: BufWriter<&'a mut File>,
@@ -25,9 +25,12 @@ impl<'a> Writer<'a> {
         })
     }
     pub fn append(&mut self, key: &[u8], value: &[u8]) -> anyhow::Result<()> {
-        self.log.push(Entry{ key_hash: cdb_hash(key), offset: self.offset });
+        self.log.push(Entry {
+            key_hash: cdb_hash(key),
+            offset: self.offset,
+        });
         self.offset += key.len() as u32 + value.len() as u32 + 8;
-        
+
         self.file.write_u32::<LittleEndian>(key.len() as u32)?;
         self.file.write_all(key)?;
 
@@ -53,7 +56,7 @@ impl<'a> Writer<'a> {
         for &offset in &table {
             self.file.write_u32::<LittleEndian>(offset)?;
         }
-        
+
         // Write the offset for the hashtable.
         self.file.seek(SeekFrom::Start(0))?;
         self.file.write_u32::<LittleEndian>(self.offset)?;
@@ -63,7 +66,6 @@ impl<'a> Writer<'a> {
         Ok(())
     }
 }
-
 
 // A simple hash function copied from CDB
 fn cdb_hash(key: &[u8]) -> u32 {

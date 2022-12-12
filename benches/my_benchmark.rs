@@ -25,8 +25,8 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             }
             w.finish().unwrap();
         }
+        let mut r = Reader::new(&mut file).unwrap();
         b.iter(|| {
-            let mut r = Reader::new(&mut file).unwrap();
             for i in 0..1_000 {
                 let key = format!("key-{}", i);
                 black_box(r.read(key.as_bytes()).unwrap());
@@ -45,8 +45,8 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             }
             w.finish().unwrap();
         }
+        let mut r = Reader::new(&mut file).unwrap();
         b.iter(|| {
-            let mut r = Reader::new(&mut file).unwrap();
             for i in 0..1_000 {
                 let key = format!("garbage-{}", i);
                 let _ = black_box(r.read(key.as_bytes()));
