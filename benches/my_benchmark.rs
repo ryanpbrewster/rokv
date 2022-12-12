@@ -14,11 +14,11 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         })
     });
 
-    c.bench_function("read_1000_of_1000", |b| {
+    c.bench_function("read_1mil_exists", |b| {
         let mut file = tempfile::tempfile().unwrap();
         {
             let mut w = Writer::new(&mut file).unwrap();
-            for i in 0..1_000 {
+            for i in 0..1_000_000 {
                 let key = format!("key-{}", i);
                 let value = format!("value-{}", i);
                 w.append(key.as_bytes(), value.as_bytes()).unwrap();
@@ -28,17 +28,17 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let mut r = Reader::new(&mut file).unwrap();
         let mut i = 0;
         b.iter(|| {
-            let key = format!("key-{}", i % 1000);
+            let key = format!("key-{}", i % 1_000_000);
             black_box(r.read(key.as_bytes()).unwrap());
             i += 1;
         });
     });
 
-    c.bench_function("read_1000_nonexistent", |b| {
+    c.bench_function("read_1mil_nonexistent", |b| {
         let mut file = tempfile::tempfile().unwrap();
         {
             let mut w = Writer::new(&mut file).unwrap();
-            for i in 0..1_000 {
+            for i in 0..1_000_000 {
                 let key = format!("key-{}", i);
                 let value = format!("value-{}", i);
                 w.append(key.as_bytes(), value.as_bytes()).unwrap();
@@ -48,7 +48,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let mut r = Reader::new(&mut file).unwrap();
         let mut i = 0;
         b.iter(|| {
-            let key = format!("garbage-{}", i % 1000);
+            let key = format!("garbage-{}", i % 1_000_000);
             let _ = black_box(r.read(key.as_bytes()));
             i += 1;
         });
