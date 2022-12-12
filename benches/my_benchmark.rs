@@ -26,11 +26,11 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             w.finish().unwrap();
         }
         let mut r = Reader::new(&mut file).unwrap();
+        let mut i = 0;
         b.iter(|| {
-            for i in 0..1_000 {
-                let key = format!("key-{}", i);
-                black_box(r.read(key.as_bytes()).unwrap());
-            }
+            let key = format!("key-{}", i % 1000);
+            black_box(r.read(key.as_bytes()).unwrap());
+            i += 1;
         });
     });
 
@@ -46,11 +46,11 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             w.finish().unwrap();
         }
         let mut r = Reader::new(&mut file).unwrap();
+        let mut i = 0;
         b.iter(|| {
-            for i in 0..1_000 {
-                let key = format!("garbage-{}", i);
-                let _ = black_box(r.read(key.as_bytes()));
-            }
+            let key = format!("garbage-{}", i % 1000);
+            let _ = black_box(r.read(key.as_bytes()));
+            i += 1;
         });
     });
 }
