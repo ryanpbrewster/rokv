@@ -1,4 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use rand::Rng;
 use rokv::sync_read::{Writer};
 
 pub fn writer_bench(c: &mut Criterion) {
@@ -29,11 +30,10 @@ pub fn sync_read_bench(c: &mut Criterion) {
             w.finish().unwrap();
         }
         let mut r = Reader::new(&mut file).unwrap();
-        let mut i = 0;
+        let mut prng = rand::thread_rng();
         b.iter(|| {
-            let key = format!("key-{}", i % 1_000_000);
+            let key = format!("key-{}", prng.gen_range(0..1_000_000));
             black_box(r.read(key.as_bytes()).unwrap());
-            i += 1;
         });
     });
 
@@ -49,11 +49,10 @@ pub fn sync_read_bench(c: &mut Criterion) {
             w.finish().unwrap();
         }
         let mut r = Reader::new(&mut file).unwrap();
-        let mut i = 0;
+        let mut prng = rand::thread_rng();
         b.iter(|| {
-            let key = format!("garbage-{}", i % 1_000_000);
+            let key = format!("garbage-{}", prng.gen_range(0..1_000_000));
             let _ = black_box(r.read(key.as_bytes()));
-            i += 1;
         });
     });
 }
@@ -72,11 +71,10 @@ pub fn mmap_read_bench(c: &mut Criterion) {
             w.finish().unwrap();
         }
         let mut r = Reader::new(&mut file).unwrap();
-        let mut i = 0;
+        let mut prng = rand::thread_rng();
         b.iter(|| {
-            let key = format!("key-{}", i % 1_000_000);
+            let key = format!("key-{}", prng.gen_range(0..1_000_000));
             black_box(r.read(key.as_bytes()).unwrap());
-            i += 1;
         });
     });
 
@@ -92,11 +90,10 @@ pub fn mmap_read_bench(c: &mut Criterion) {
             w.finish().unwrap();
         }
         let mut r = Reader::new(&mut file).unwrap();
-        let mut i = 0;
+        let mut prng = rand::thread_rng();
         b.iter(|| {
-            let key = format!("garbage-{}", i % 1_000_000);
+            let key = format!("garbage-{}", prng.gen_range(0..1_000_000));
             let _ = black_box(r.read(key.as_bytes()));
-            i += 1;
         });
     });
 }
