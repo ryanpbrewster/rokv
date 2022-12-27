@@ -97,3 +97,18 @@ principle there are workarounds for this:
 CDB uses linear probing, Sparkey uses a modified Robinhood approach. Those are
 pragmatic, but they have the downside of requiring potentially large numbers of
 disk seeks when answering a query.
+
+# Benchmarks
+
+As of commit `28fa99049a67546fc211260910cc2b004c349bff` the MMAP-based implementation is benchmarking on my laptop at
+```
+mmap_read_100mil_exists time:
+    [1.8716 µs 1.9001 µs 1.9355 µs]
+
+mmap_read_100mil_nonexistent time:
+    [569.58 ns 585.81 ns 606.08 ns]
+```
+
+The latency distribution for these two scenarios looks like:
+![mmap_exists](doc/mmap_exists.svg)
+![mmap_not_exists](doc/mmap_not_exists.svg)
