@@ -3,7 +3,7 @@ use rand::Rng;
 use rokv::sync_read::Writer;
 
 pub fn writer_bench(c: &mut Criterion) {
-    c.bench_function("fill_1000", |b| {
+    c.bench_function("writer_fill_1000", |b| {
         b.iter(|| {
             let mut file = tempfile::tempfile().unwrap();
             let mut w = Writer::new(&mut file).unwrap();
@@ -17,18 +17,19 @@ pub fn writer_bench(c: &mut Criterion) {
 }
 
 pub fn sync_read_bench(c: &mut Criterion) {
-    use rokv::sync_read::Reader;
-    c.bench_function("read_1mil_exists", |b| {
-        let mut file = tempfile::tempfile().unwrap();
-        {
-            let mut w = Writer::new(&mut file).unwrap();
-            for i in 0..1_000_000 {
-                let key = format!("key-{}", i);
-                let value = format!("value-{}", i);
-                w.append(key.as_bytes(), value.as_bytes()).unwrap();
-            }
-            w.finish().unwrap();
+    let mut file = tempfile::tempfile().unwrap();
+    {
+        let mut w = Writer::new(&mut file).unwrap();
+        for i in 0..1_000_000 {
+            let key = format!("key-{}", i);
+            let value = format!("value-{}", i);
+            w.append(key.as_bytes(), value.as_bytes()).unwrap();
         }
+        w.finish().unwrap();
+    }
+
+    use rokv::sync_read::Reader;
+    c.bench_function("sync_read_1mil_exists", |b| {
         let mut r = Reader::new(&mut file).unwrap();
         let mut prng = rand::thread_rng();
         b.iter(|| {
@@ -37,17 +38,7 @@ pub fn sync_read_bench(c: &mut Criterion) {
         });
     });
 
-    c.bench_function("read_1mil_nonexistent", |b| {
-        let mut file = tempfile::tempfile().unwrap();
-        {
-            let mut w = Writer::new(&mut file).unwrap();
-            for i in 0..1_000_000 {
-                let key = format!("key-{}", i);
-                let value = format!("value-{}", i);
-                w.append(key.as_bytes(), value.as_bytes()).unwrap();
-            }
-            w.finish().unwrap();
-        }
+    c.bench_function("sync_read_1mil_nonexistent", |b| {
         let mut r = Reader::new(&mut file).unwrap();
         let mut prng = rand::thread_rng();
         b.iter(|| {
@@ -58,18 +49,18 @@ pub fn sync_read_bench(c: &mut Criterion) {
 }
 
 pub fn mmap_read_bench(c: &mut Criterion) {
-    use rokv::mmap::Reader;
-    c.bench_function("read_1mil_exists", |b| {
-        let mut file = tempfile::tempfile().unwrap();
-        {
-            let mut w = Writer::new(&mut file).unwrap();
-            for i in 0..1_000_000 {
-                let key = format!("key-{}", i);
-                let value = format!("value-{}", i);
-                w.append(key.as_bytes(), value.as_bytes()).unwrap();
-            }
-            w.finish().unwrap();
+    let mut file = tempfile::tempfile().unwrap();
+    {
+        let mut w = Writer::new(&mut file).unwrap();
+        for i in 0..1_000_000 {
+            let key = format!("key-{}", i);
+            let value = format!("value-{}", i);
+            w.append(key.as_bytes(), value.as_bytes()).unwrap();
         }
+        w.finish().unwrap();
+    }
+    use rokv::mmap::Reader;
+    c.bench_function("mmap_read_1mil_exists", |b| {
         let mut r = Reader::new(&mut file).unwrap();
         let mut prng = rand::thread_rng();
         b.iter(|| {
@@ -78,17 +69,7 @@ pub fn mmap_read_bench(c: &mut Criterion) {
         });
     });
 
-    c.bench_function("read_1mil_nonexistent", |b| {
-        let mut file = tempfile::tempfile().unwrap();
-        {
-            let mut w = Writer::new(&mut file).unwrap();
-            for i in 0..1_000_000 {
-                let key = format!("key-{}", i);
-                let value = format!("value-{}", i);
-                w.append(key.as_bytes(), value.as_bytes()).unwrap();
-            }
-            w.finish().unwrap();
-        }
+    c.bench_function("mmap_read_1mil_nonexistent", |b| {
         let mut r = Reader::new(&mut file).unwrap();
         let mut prng = rand::thread_rng();
         b.iter(|| {
