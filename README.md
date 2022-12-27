@@ -2,6 +2,11 @@
 
 Inspired by D. J. Bernstein's [cdb](https://cr.yp.to/cdb.html) and Spotify's [sparkey](https://github.com/spotify/sparkey).
 
+Cuckoo approach based on [this](https://www.ru.is/faculty/ulfar/CuckooHash.pdf)
+very approachable paper by Erlingsson, Manasse, and McSherry (vendored for
+posterity at
+`doc/a-cool-and-practical-alternative-to-traditional-hash-tables.pdf`).
+
 # File format
 
 The high-level file format here is:
