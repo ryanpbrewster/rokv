@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rand::Rng;
-use rokv::sync_read::{Writer};
+use rokv::sync_read::Writer;
 
 pub fn writer_bench(c: &mut Criterion) {
     c.bench_function("fill_1000", |b| {

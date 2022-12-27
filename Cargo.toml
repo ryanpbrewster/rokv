@@ -7,6 +7,7 @@ edition = "2021"
 anyhow = { version = "1.0.66", features = ["backtrace"] }
 byteorder = "1.4.3"
 clap = {version = "4.0.29", features = ["derive"] }
+farmhash = "1.1.5"
 memmap = "0.7.0"
 tempfile = "3.3.0"
 

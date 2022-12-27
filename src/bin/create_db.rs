@@ -1,7 +1,7 @@
-use std::{path::PathBuf, fs::File};
+use std::{fs::File, path::PathBuf};
 
-use rokv::sync_read::Writer;
 use clap::Parser;
+use rokv::sync_read::Writer;
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
@@ -24,7 +24,7 @@ fn main() -> anyhow::Result<()> {
     let mut w = Writer::new(&mut fout)?;
 
     let mut buf = Vec::with_capacity(args.value_size);
-    for i in 0 .. args.count {
+    for i in 0..args.count {
         let key = format!("key-{:06}", i);
         let value = format!("value-{:06}", i);
 

@@ -1,5 +1,6 @@
-pub mod sync_read;
+mod cuckoo;
 pub mod mmap;
+pub mod sync_read;
 
 // A simple hash function copied from CDB
 pub(crate) fn cdb_hash(key: &[u8]) -> u32 {

@@ -4,7 +4,6 @@ use byteorder::{ByteOrder, LittleEndian};
 
 use crate::cdb_hash;
 
-
 pub struct Reader<'a> {
     _file: &'a File, // this field is only here to ensure that the file isn't dropped while we have it mapped
     buf: memmap::Mmap,
@@ -23,7 +22,11 @@ impl<'a> Reader<'a> {
             table_reader = &table_reader[4..];
         }
 
-        Ok(Reader { _file: file, buf, table })
+        Ok(Reader {
+            _file: file,
+            buf,
+            table,
+        })
     }
     pub fn read(&mut self, key: &[u8]) -> anyhow::Result<Option<Vec<u8>>> {
         let mut slot = cdb_hash(key) as usize % self.table.len();
