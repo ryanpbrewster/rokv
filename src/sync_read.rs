@@ -6,7 +6,7 @@ use std::{
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 use crate::{
-    cuckoo::{self, assemble_cuckoo},
+    cuckoo::{self, try_assemble_cuckoo},
     farmhash_fingerprint,
 };
 
@@ -58,8 +58,7 @@ impl<'a> Writer<'a> {
     pub fn finish(mut self) -> anyhow::Result<()> {
         // Compute a hashtable. We're using linear probing, so make sure the
         // load factor is not too high. We'll go with 0.5 for now.
-        let table = assemble_cuckoo(&self.log, 2 * self.log.len())?;
-        println!("finish w/ table = {:?}", table);
+        let table = try_assemble_cuckoo(&self.log, (2..=5).map(|k| k * self.log.len()))?;
 
         // Write the hashtable.
         for &idx in &table {
@@ -95,8 +94,6 @@ impl<'a> Reader<'a> {
             *slot = file.read_u32::<LittleEndian>()?;
         }
 
-        println!("reader init w/ table = {:?}", table);
-
         Ok(Reader { file, table })
     }
     pub fn read(&mut self, key: &[u8]) -> anyhow::Result<Option<Vec<u8>>> {
@@ -104,22 +101,16 @@ impl<'a> Reader<'a> {
 
         let s1 = self.table[h1 as usize % self.table.len()];
         if s1 > 0 {
-            println!("looking for {:?} at {} -> {}", key, h1, s1);
             if let Some(v) = self.try_read(key, s1)? {
                 return Ok(Some(v));
             }
-        } else {
-            println!("skipping {:?} slot 1: {}", key, h1);
         }
 
         let s2 = self.table[h2 as usize % self.table.len()];
         if s2 > 0 {
-            println!("looking for {:?} at {} -> {}", key, h2, s2);
             if let Some(v) = self.try_read(key, s2)? {
                 return Ok(Some(v));
             }
-        } else {
-            println!("skipping {:?} slot 1: {}", key, h2);
         }
 
         Ok(None)
@@ -160,6 +151,35 @@ mod test {
         assert_eq!(r.read(b"hello")?, Some(b"world".to_vec()));
         assert_eq!(r.read(b"foo")?, None);
 
+        Ok(())
+    }
+
+    #[test]
+    fn writer_fails_on_duplicate_keys() -> anyhow::Result<()> {
+        let mut file = tempfile::tempfile()?;
+
+        // Cuckoo hashing can handle a single unreconcilable collision, but once
+        // there are 3 duplicate items it will explode.
+        let mut w = Writer::new(&mut file)?;
+        w.append(b"hello", b"a")?;
+        w.append(b"hello", b"b")?;
+        w.append(b"hello", b"c")?;
+        assert!(w.finish().is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn writer_smoke_test() -> anyhow::Result<()> {
+        let mut file = tempfile::tempfile()?;
+
+        let mut w = Writer::new(&mut file)?;
+        for i in 0..1_000_000 {
+            w.append(
+                format!("key-{}", i).as_bytes(),
+                format!("value-{}", i).as_bytes(),
+            )?;
+        }
+        w.finish()?;
         Ok(())
     }
 }

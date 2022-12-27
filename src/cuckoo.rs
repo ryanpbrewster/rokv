@@ -1,3 +1,5 @@
+use anyhow::anyhow;
+
 const MAX_ATTEMPTS: usize = 50;
 pub trait Entry: Copy + std::fmt::Debug {
     fn h1(&self) -> usize;
@@ -6,25 +8,44 @@ pub trait Entry: Copy + std::fmt::Debug {
 pub fn assemble_cuckoo<T: Entry>(input: &[T], cap: usize) -> anyhow::Result<Vec<Option<usize>>> {
     let mut table = vec![None; cap];
     for i in 0..input.len() {
-        let mut cur = i;
-        for attempt in 0.. {
-            if attempt > MAX_ATTEMPTS {
-                return Err(anyhow::format_err!("could not place {:?}", i));
-            }
-            let l1 = input[cur].h1() % cap;
-            if table[l1].is_none() {
-                table[l1] = Some(cur);
-                break;
-            }
-            let l2 = input[cur].h2() % cap;
-            if let Some(prev) = table[l2].replace(cur) {
-                cur = prev;
-            } else {
-                break;
+        let l1 = input[i].h1() % cap;
+        if table[l1].is_none() {
+            table[l1] = Some(i);
+        } else {
+            let mut cur = i;
+            let mut loc = input[cur].h2() % cap;
+            for attempt in 0.. {
+                if attempt > MAX_ATTEMPTS {
+                    return Err(anyhow::format_err!("could not place {:?}", i));
+                }
+                if let Some(prev) = table[loc].replace(cur) {
+                    cur = prev;
+                    let p1 = input[prev].h1() % cap;
+                    if p1 != loc {
+                        loc = p1;
+                    } else {
+                        loc = input[prev].h2() % cap;
+                    }
+                } else {
+                    break;
+                }
             }
         }
     }
     Ok(table)
+}
+pub fn try_assemble_cuckoo<T: Entry>(
+    input: &[T],
+    cap: impl IntoIterator<Item = usize>,
+) -> anyhow::Result<Vec<Option<usize>>> {
+    let mut errs = Vec::new();
+    for c in cap {
+        match assemble_cuckoo(input, c) {
+            Ok(table) => return Ok(table),
+            Err(err) => errs.push(err),
+        };
+    }
+    Err(anyhow!("could not assemble a cuckoo table: {:?}", errs))
 }
 
 #[cfg(test)]

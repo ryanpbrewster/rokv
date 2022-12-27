@@ -33,22 +33,16 @@ impl<'a> Reader<'a> {
 
         let s1 = self.table[h1 as usize % self.table.len()];
         if s1 > 0 {
-            println!("looking for {:?} at {} -> {}", key, h1, s1);
             if let Some(v) = self.try_read(key, s1)? {
                 return Ok(Some(v));
             }
-        } else {
-            println!("skipping {:?} slot 1: {}", key, h1);
         }
 
         let s2 = self.table[h2 as usize % self.table.len()];
         if s2 > 0 {
-            println!("looking for {:?} at {} -> {}", key, h2, s2);
             if let Some(v) = self.try_read(key, s2)? {
                 return Ok(Some(v));
             }
-        } else {
-            println!("skipping {:?} slot 1: {}", key, h2);
         }
 
         Ok(None)
