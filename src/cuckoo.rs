@@ -1,74 +1,71 @@
-#[derive(PartialEq, Eq, Clone, Debug)]
-pub struct Entry {
-    h1: usize,
-    h2: usize,
-}
-
-pub struct CuckooTable {
-    cells: Vec<Option<Entry>>,
-}
-
 const MAX_ATTEMPTS: usize = 50;
-impl CuckooTable {
-    pub fn new(size: usize) -> CuckooTable {
-        CuckooTable {
-            cells: vec![None; size],
-        }
-    }
-
-    /// Returns true if the entry could be successfully added to the table.
-    /// If not, the table needs to be either re-hashed or re-sized.
-    pub fn insert(&mut self, mut e: Entry) -> bool {
-        for _ in 0 .. MAX_ATTEMPTS {
-            let (l1, l2) = (e.h1 % self.cells.len(), e.h2 % self.cells.len());
-            if self.cells[l1].is_none() {
-                self.cells[l1] = Some(e);
-                return true;
+pub trait Entry: Copy + std::fmt::Debug {
+    fn h1(&self) -> usize;
+    fn h2(&self) -> usize;
+}
+pub fn assemble_cuckoo<T: Entry>(input: &[T], cap: usize) -> anyhow::Result<Vec<Option<usize>>> {
+    let mut table = vec![None; cap];
+    for i in 0..input.len() {
+        let mut cur = i;
+        for attempt in 0.. {
+            if attempt > MAX_ATTEMPTS {
+                return Err(anyhow::format_err!("could not place {:?}", i));
             }
-            match self.cells[l2].clone() {
-                None => {
-                    self.cells[l2] = Some(e);
-                    return true;
-                }
-                Some(prev) => {
-                    self.cells[l2] = Some(e);
-                    e = prev;
-                }
+            let l1 = input[cur].h1() % cap;
+            if table[l1].is_none() {
+                table[l1] = Some(cur);
+                break;
+            }
+            let l2 = input[cur].h2() % cap;
+            if let Some(prev) = table[l2].replace(cur) {
+                cur = prev;
+            } else {
+                break;
             }
         }
-        false
     }
+    Ok(table)
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
 
-    #[test]
-    fn smoke() {
-        let input = vec![
-            Entry { h1: 1, h2: 2 },
-            Entry { h1: 3, h2: 4 },
-            Entry { h1: 1, h2: 3 },
-            Entry { h1: 2, h2: 4 },
-        ];
-        let mut table = CuckooTable::new(16);
-        for e in &input {
-            assert!(table.insert(e.clone()), "could not insert {:?}", e);
+    #[derive(Copy, Clone, Debug)]
+    struct TestEntry {
+        h1: u64,
+        h2: u64,
+    }
+    impl Entry for TestEntry {
+        fn h1(&self) -> usize {
+            self.h1 as usize
         }
-        let cells = table.cells;
-        for (i, e @ Entry { h1, h2 }) in input.iter().enumerate() {
-            let s1 = &cells[h1 % cells.len()];
-            let s2 = &cells[h2 % cells.len()];
+        fn h2(&self) -> usize {
+            self.h2 as usize
+        }
+    }
+
+    #[test]
+    fn smoke() -> anyhow::Result<()> {
+        let input = vec![
+            TestEntry { h1: 1, h2: 2 },
+            TestEntry { h1: 3, h2: 4 },
+            TestEntry { h1: 1, h2: 3 },
+            TestEntry { h1: 2, h2: 4 },
+        ];
+        let table = assemble_cuckoo(&input, 2 * input.len())?;
+        for (i, e) in input.iter().enumerate() {
+            let s1 = table[e.h1() % table.len()];
+            let s2 = table[e.h2() % table.len()];
             assert!(
-                s1 == &Some(e.clone()) || s2 == &Some(e.clone()),
-                "item {} == {{{}, {}}} -> [{:?}, {:?}]",
+                s1 == Some(i) || s2 == Some(i),
+                "item {} == {:?} -> [{:?}, {:?}]",
                 i,
-                h1,
-                h2,
+                e,
                 s1,
                 s2
             );
         }
+        Ok(())
     }
 }

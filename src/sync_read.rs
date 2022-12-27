@@ -5,17 +5,31 @@ use std::{
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
-use crate::cdb_hash;
+use crate::{
+    cuckoo::{self, assemble_cuckoo},
+    farmhash_fingerprint,
+};
 
 pub struct Writer<'a> {
     file: BufWriter<&'a mut File>,
     offset: u32,
     log: Vec<Entry>,
 }
+#[derive(Copy, Clone, Debug)]
 struct Entry {
-    key_hash: u32,
+    key_hash: (u32, u32),
     offset: u32,
 }
+impl cuckoo::Entry for Entry {
+    fn h1(&self) -> usize {
+        self.key_hash.0 as usize
+    }
+
+    fn h2(&self) -> usize {
+        self.key_hash.1 as usize
+    }
+}
+
 impl<'a> Writer<'a> {
     pub fn new(file: &'a mut File) -> anyhow::Result<Self> {
         // Leave room for the header: a pair of u32 values indicating the offset + length of the footer table.
@@ -28,7 +42,7 @@ impl<'a> Writer<'a> {
     }
     pub fn append(&mut self, key: &[u8], value: &[u8]) -> anyhow::Result<()> {
         self.log.push(Entry {
-            key_hash: cdb_hash(key),
+            key_hash: farmhash_fingerprint(key),
             offset: self.offset,
         });
         self.offset += key.len() as u32 + value.len() as u32 + 8;
@@ -44,19 +58,14 @@ impl<'a> Writer<'a> {
     pub fn finish(mut self) -> anyhow::Result<()> {
         // Compute a hashtable. We're using linear probing, so make sure the
         // load factor is not too high. We'll go with 0.5 for now.
-        let mut table: Vec<u32> = vec![0; 2 * self.log.len()];
-        for entry in self.log {
-            let mut slot = entry.key_hash as usize % table.len();
-            // In the case of collisions, perform linear probing to find an empty slot.
-            while table[slot] > 0 {
-                slot = (slot + 1) % table.len();
-            }
-            table[slot] = entry.offset;
-        }
+        let table = assemble_cuckoo(&self.log, 2 * self.log.len())?;
+        println!("finish w/ table = {:?}", table);
 
         // Write the hashtable.
-        for &offset in &table {
-            self.file.write_u32::<LittleEndian>(offset)?;
+        for &idx in &table {
+            self.file.write_u32::<LittleEndian>(
+                idx.map(|idx| self.log[idx].offset).unwrap_or(0) as u32,
+            )?;
         }
 
         // Write the offset for the hashtable.
@@ -86,28 +95,50 @@ impl<'a> Reader<'a> {
             *slot = file.read_u32::<LittleEndian>()?;
         }
 
+        println!("reader init w/ table = {:?}", table);
+
         Ok(Reader { file, table })
     }
     pub fn read(&mut self, key: &[u8]) -> anyhow::Result<Option<Vec<u8>>> {
-        let mut slot = cdb_hash(key) as usize % self.table.len();
-        while self.table[slot] > 0 {
-            self.file.seek(SeekFrom::Start(self.table[slot] as u64))?;
+        let (h1, h2) = farmhash_fingerprint(key);
 
-            let key_len = self.file.read_u32::<LittleEndian>()?;
-            let mut key_buf = vec![0; key_len as usize];
-            self.file.read_exact(&mut key_buf)?;
-
-            if key_buf != key {
-                slot = (slot + 1) % self.table.len();
-                continue;
+        let s1 = self.table[h1 as usize % self.table.len()];
+        if s1 > 0 {
+            println!("looking for {:?} at {} -> {}", key, h1, s1);
+            if let Some(v) = self.try_read(key, s1)? {
+                return Ok(Some(v));
             }
-
-            let value_len = self.file.read_u32::<LittleEndian>()?;
-            let mut value_buf = vec![0; value_len as usize];
-            self.file.read_exact(&mut value_buf)?;
-            return Ok(Some(value_buf));
+        } else {
+            println!("skipping {:?} slot 1: {}", key, h1);
         }
+
+        let s2 = self.table[h2 as usize % self.table.len()];
+        if s2 > 0 {
+            println!("looking for {:?} at {} -> {}", key, h2, s2);
+            if let Some(v) = self.try_read(key, s2)? {
+                return Ok(Some(v));
+            }
+        } else {
+            println!("skipping {:?} slot 1: {}", key, h2);
+        }
+
         Ok(None)
+    }
+    fn try_read(&mut self, key: &[u8], offset: u32) -> anyhow::Result<Option<Vec<u8>>> {
+        self.file.seek(SeekFrom::Start(offset as u64))?;
+
+        let key_len = self.file.read_u32::<LittleEndian>()?;
+        let mut key_buf = vec![0; key_len as usize];
+        self.file.read_exact(&mut key_buf)?;
+
+        if key_buf != key {
+            return Ok(None);
+        }
+
+        let value_len = self.file.read_u32::<LittleEndian>()?;
+        let mut value_buf = vec![0; value_len as usize];
+        self.file.read_exact(&mut value_buf)?;
+        Ok(Some(value_buf))
     }
 }
 

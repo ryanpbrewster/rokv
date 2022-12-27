@@ -2,11 +2,9 @@ mod cuckoo;
 pub mod mmap;
 pub mod sync_read;
 
-// A simple hash function copied from CDB
-pub(crate) fn cdb_hash(key: &[u8]) -> u32 {
-    let mut h: u32 = 5381;
-    for &c in key {
-        h = h.wrapping_mul(33) ^ c as u32;
-    }
-    h
+pub(crate) fn farmhash_fingerprint(key: &[u8]) -> (u32, u32) {
+    let h = farmhash::fingerprint64(key);
+    let lo = (h & 0xFFFFFFFF) as u32;
+    let hi = (h >> 32) as u32;
+    (lo, hi)
 }
