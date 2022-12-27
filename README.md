@@ -108,7 +108,71 @@ mmap_read_100mil_exists time:
 mmap_read_100mil_nonexistent time:
     [569.58 ns 585.81 ns 606.08 ns]
 ```
+on a 100 million element sample database.
 
 The latency distribution for these two scenarios looks like:
 ![mmap_exists](doc/mmap_exists.svg)
 ![mmap_not_exists](doc/mmap_not_exists.svg)
+
+Sparkey claims to get
+```
+Testing bulk insert of 100.000.000 elements and 1000.000 random lookups
+  Candidate: Sparkey compressed(1024)
+    creation time (wall):     90.50
+    creation time (cpu):      90.46
+    throughput (puts/cpusec): 1105412.00
+    file size:                3162865465
+    lookup time (wall):          3.50
+    lookup time (cpu):           3.60
+    throughput (lookups/cpusec): 277477.41
+```
+so it's looking like this approach is ~2x faster for the normal case, and ~6x
+faster for the non-existent case. The normal caveats around benchmark(et)ing
+apply: the Sparkey benchmarks are on a production-like server, my benchmarks are
+on my laptop, I certainly didn't use the same underlying dataset or hash
+functions. Their results are probably from 2010-era hardware, while my laptop is
+using a 2018-era Intel chip and a new-ish NVMe SSD.
+
+This generally matches my intuition: the major
+advantage of the Cuckoo-hashing approach is that we only need to do 2 lookups in
+the worst-case, whereas the Sparkey approach of Robinhood hashing requires
+probing until you exceed the max_displacement threshold for the entire database.
+
+Maybe some kind of Bloom filter approach (or a Cuckoo filter?) could be a nice
+addition to the Sparkey implementation to specifically optimize queries on
+non-existent keys, since those are a worst-case input.
+
+# Potential extensions
+
+### io_uring
+
+I'm a bit curious about the long tail behavior, especially under highly
+concurrent load. I have a nagging suspicion that MMAP is not the optimal kernel
+interface. I read a bit about io_uring, which seems like a promising way to get
+better performance for highly concurrent file IO.
+
+### NVMe APIs
+
+I also looked briefly into using the raw NVMe APIs, rather than relying on the
+filesystem to seek and read blocks from the SSD. This use-case maps pretty
+cleanly onto the underlying block storage device APIs, but that seems like it
+would introduce some pretty significant operational complexity in terms of
+actually downloading the database onto a machine. The filesystem approach means
+you can download the database file directly from some cloud blob storage service
+(s3, gcs) and immediately start using it.
+
+### Writing large datasets
+
+When writing a dataset, this approach has to keep the records in-memory, which
+means that very large datasets (especially datasets with many records) require a
+lot of RAM. Sparkey has a disk-based sorting approach that might be interesting
+to experiment with.
+
+### Disk-backed hashtable
+
+The current approach requires that readers pull the entire hashtable into memory
+before they can answer queries. There's no particular reason that has to be the
+case. We could mmap the hashtable and then do the lookups from disk. That would
+require up to 4 disk seeks in the worst case, rather than the current 2, but it
+would potentially reduce the memory footprint significantly. I wonder how the
+page cache would handle that type of workload.
