@@ -9,11 +9,11 @@ byteorder = "1.4.3"
 clap = {version = "4.0.29", features = ["derive"] }
 farmhash = "1.1.5"
 memmap = "0.7.0"
+rand = { version = "0.8.5", features = ["small_rng"] }
 tempfile = "3.3.0"
 
 [dev-dependencies]
 criterion = "0.3"
-rand = { version = "0.8.5", features = ["small_rng"] }
 
 [[bench]]
 name = "my_benchmark"
